@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>webrtc-realtime-translation</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <style type="text/css">
+      body {
+        margin: 0px;
+        padding: 0px;
+      }
+      .container {
+        margin: 0px;
+        padding: 0px;
+        max-width: initial;
+      }
+      .video-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+        background-color: dimgray;
+      }
+      .video-frame {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        overflow: hidden;
+      }
+      video {
+        height: 100%;
+        width: 100%;
+      }
+      video.cover {
+        object-fit: cover;
+      }
+      .text-container {
+        top: 0px;
+        left: 0px;
+        position: relative;
+        overflow: auto;
+        background-color: rgba(100,100,100,0.5);
+        z-index: 100;
+      }
+      .text-frame {
+        color: white;
+        background-color: rgba(50,50,50,0.5);
+      }
+      .text-frame.other {
+        color: white;
+        background-color: rgba(0,128,0,0.5);
+      }
+      .text-frame.unresolved {
+        color: white;
+        background-color: rgba(128,0,0,0.5);
+      }
+      .text-frame.translate {
+        color: white;
+        background-color: rgba(0,0,128,0.5);
+      }
+      span.nav-link, button.dropdown-item {
+        cursor: pointer;
+      }
+      [v-cloak] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="vue-app" class="container">
+      <div class="video-container">
+        <div class="text-container" :class="{invisible : !feature.transcription }" v-cloak>
+          <p class="text-frame" v-for="message in messages" :class="{other: message.hasOwnProperty('from'), unresolved: message.hasOwnProperty('unresolved') && message.unresolved, translate: message.hasOwnProperty('translate') && message.translate }">{{ message.text }}</p>
+        </div>
+        <div class="video-frame" v-for="user in rendererUsers" :style="user.style">
+          <video v-videostream="user.stream" :class="styleCover" @click="on_click_video(user.stream)" autoplay playsinline></video>
+        </div>
+      </div>
+      <nav class="navbar fixed-bottom navbar-expand-lg navbar-dark bg-dark">
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarCollapse">
+          <ul class="navbar-nav mr-auto">
+            <li class="nav-item dropup">
+              <span class="nav-link dropdown-toggle" id="dropdown_mode" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" :class="{disabled : is_online}">Mode</span>
+              <div class="dropdown-menu" aria-labelledby="dropdown_mode">
+                <button type="button" class="dropdown-item" v-for="item in skyway.mode.item" :class="{active : item.value == skyway.mode.using.value}" @click="on_select_skyway_mode(item)">{{ item.label }}</button>
+              </div>
+            </li>
+            <li class="nav-item dropup">
+              <span class="nav-link dropdown-toggle" id="dropdown_bandwidth" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" :class="{disabled : is_online || is_sfu}">Bandwidth</span>
+              <div class="dropdown-menu" aria-labelledby="dropdown_bandwidth">
+                <button type="button" class="dropdown-item" v-for="item in bandwidth.item" :class="{active : bandwidth.using && bandwidth.using.value == item.value}" @click="on_select_bandwidth(item)">{{ item.label }}</button>
+              </div>
+            </li>
+            <li class="nav-item dropup">
+              <span class="nav-link dropdown-toggle" id="dropdown_video" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Video</span>
+              <div class="dropdown-menu" aria-labelledby="dropdown10">
+                <button type="button" class="dropdown-item" v-for="item in video.codec.item" :class="{active : video.codec.using && item.value == video.codec.using.value, disabled: is_sfu}" @click="on_select_codec(item)">{{ item.label }}</button>
+                <div class="dropdown-divider"></div>
+                <button type="button" class="dropdown-item" v-for="item in video.size.item" :class="{active : video.size.using && item.value == video.size.using.value}" @click="on_select_size(item)">{{ item.label }}</button>
+                <div class="dropdown-divider"></div>
+                <button type="button" class="dropdown-item" v-for="item in video.fps.item" :class="{active : video.fps.using && item.value == video.fps.using.value}" @click="on_select_fps(item)">{{ item.label }}</button>
+              </div>
+            </li>
+            <li class="nav-item dropup">
+              <span class="nav-link dropdown-toggle" id="dropdown_camera" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" :class="{disabled : !has_camera}">Camera</span>
+              <div class="dropdown-menu" aria-labelledby="dropdown_camera">
+                <button type="button" class="dropdown-item" v-for="cam in camera.device" :class="{active : camera.using && camera.using.deviceId == cam.deviceId}" @click="on_select_camera(cam)">{{ cam.label }}</button>
+              </div>
+            </li>
+            <li class="nav-item dropup">
+              <span class="nav-link dropdown-toggle" id="dropdown_microphone" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" :class="{disabled : !has_microphone}">Microphone</span>
+              <div class="dropdown-menu" aria-labelledby="dropdown_microphone">
+                <button type="button" class="dropdown-item" :class="{active : microphone.mute}" @click="on_select_microphone_mute()">Mute</button>
+                <div class="dropdown-divider"></div>
+                <button type="button" class="dropdown-item" v-for="mic in microphone.device" :class="{active : microphone.using && microphone.using.deviceId == mic.deviceId}" @click="on_select_microphone(mic)">{{ mic.label }}</button>
+              </div>
+            </li>
+            <li class="nav-item dropup">
+              <span class="nav-link dropdown-toggle" id="dropdown_speaker" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" :class="{disabled : !has_speaker}">Speaker</span>
+              <div class="dropdown-menu" aria-labelledby="dropdown_speaker">
+                <button type="button" class="dropdown-item" :class="{active : speaker.mute}" @click="on_select_speaker_mute()">Mute</button>
+                <div class="dropdown-divider"></div>
+                <button type="button" class="dropdown-item" v-for="dev in speaker.device" :class="{active : speaker.using && speaker.using.deviceId == dev.deviceId}" @click="on_select_speaker(dev)">{{ dev.label }}</button>
+              </div>
+            </li>
+            <li class="nav-item dropup">
+              <span class="nav-link dropdown-toggle" id="dropdown_layout" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Layout</span>
+              <div class="dropdown-menu" aria-labelledby="dropdown_layout">
+                <button type="button" class="dropdown-item" v-for="item in layout.item" :class="{active : item.value == layout.using.value}" @click="on_select_layout(item)">{{ item.label }}</button>
+                <div class="dropdown-divider"></div>
+                <button type="button" class="dropdown-item" v-for="item in renderer.item" :class="{active : item.value == renderer.using.value}" @click="on_select_renderer(item)">{{ item.label }}</button>
+              </div>
+            </li>
+            <li class="nav-item dropup">
+              <span class="nav-link dropdown-toggle" id="dropdown_share" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Experimental</span>
+              <div class="dropdown-menu" aria-labelledby="dropdown_layout">
+                <button type="button" class="dropdown-item" :class="{active : skyway.stats}" @click="on_select_screen_share()">Screen Share</button>
+                <button type="button" class="dropdown-item" @click="on_select_recognition()">Speech Recognition</button>
+              </div>
+            </li>
+            <!-- <li class="nav-item dropup">
+              <span class="nav-link dropdown-toggle" id="dropdown_stats" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" :class="{disabled: is_mesh || is_sfu}">Stats</span>
+              <div class="dropdown-menu" aria-labelledby="dropdown_layout">
+                <button type="button" class="dropdown-item" :class="{active : skyway.stats}" @click="on_select_stats()">Output status on console</button>
+              </div>
+            </li> -->
+          </ul>
+          <span class="navbar-brand" :class="{invisible : !is_p2p }" v-cloak>{{ skyway.peer ? skyway.peer.id  : "" }}</span>
+          <form class="form-inline mt-2 mt-md-0" @submit.prevent="on_call">
+            <input class="form-control mr-sm-2" type="text" :placeholder="is_p2p ? 'PeerID' : 'Room Name'" aria-label="call" v-model="skyway.callto" :readonly="is_online">
+            <button class="btn btn-outline-success my-2 my-sm-0" v-cloak>{{ (skyway.call || skyway.room) ? "leave" : is_p2p ? "Call" : "Join" }}</button>
+          </form>
+        </div>
+      </nav>
+      <div class="modal fade">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h4 class="modal-title">Speech Recognition and Translation</h4>
+            </div>
+            <div class="modal-body">
+              <label for="transcription">
+                <input type="checkbox" id="transcription" v-model="feature.transcription" :disabled="translation.api == ''" />Use Speech Recognition
+              </label>
+              <br>
+              Select Your Language
+              <select name="language" v-model="feature.lang" :disabled="!feature.transcription">
+                <option value="ja-JP">Japanese</option>
+                <option value="en-US">English</option>
+              </select>
+              <hr>
+              <label for="translation">
+                <input type="checkbox" id="translation" v-model="feature.translation" :disabled="translation.api == ''" />Translate Incomming Text
+              </label>
+              <br>
+              <label for="speech">
+                <input type="checkbox" id="speech" v-model="feature.speech" :disabled="translation.api == ''" />Use Speech Synthesizer
+              </label>
+              <br>
+              <label for="mute_remote_voice">
+                <input type="checkbox" id="mute_remote_voice" v-model="feature.mute_remote_voice" />Mute Remote Voice
+              </label>
+              <hr>
+              <h5>Debug</h5>
+              <p>
+                <label for="self_translation">
+                  <input type="checkbox" id="self_translation" v-model="debug.self_translation" :disabled="translation.api == ''" />Translate Your Voice
+                </label>
+              </p>
+            </div>
+            <div class="modal-footer">
+              <!-- <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button> -->
+              <button type="button" class="btn btn-primary" data-dismiss="modal">OK</button>
+            </div>
+          </div><!-- /.modal-content -->
+        </div><!-- /.modal-dialog -->
+      </div><!-- /.modal -->
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+    <!-- <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.min.js"></script>
+
+    <script src="https://cdn.webrtc.ecl.ntt.com/skyway-latest.js"></script>
+    <script src="https://cdn.webrtc.ecl.ntt.com/screenshare-latest.js"></script>
+
+    <script src="./key.js"></script>
+    <script src="./consts.js"></script>
+    <script src="./main.js"></script>
+
+    <script type="text/javascript">
+      $(window).on('load resize', function(){
+        $(".container").width(window.innerWidth);
+        $(".container").height(window.innerHeight - $(".navbar").outerHeight());
+        $(".text-container").width(0.25 * window.innerWidth);
+        $(".text-container").height(window.innerHeight - $(".navbar").outerHeight());
+        vm.update_video_layout()
+      });
+    </script>
+
+  </body>
+</html>
