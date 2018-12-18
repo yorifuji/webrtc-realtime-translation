@@ -83,7 +83,7 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarCollapse">
           <ul class="navbar-nav mr-auto">
-            <li class="nav-item dropup">
+            <!-- <li class="nav-item dropup">
               <span class="nav-link dropdown-toggle" id="dropdown_mode" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" :class="{disabled : is_online}">Mode</span>
               <div class="dropdown-menu" aria-labelledby="dropdown_mode">
                 <button type="button" class="dropdown-item" v-for="item in skyway.mode.item" :class="{active : item.value == skyway.mode.using.value}" @click="on_select_skyway_mode(item)">{{ item.label }}</button>
@@ -134,20 +134,13 @@
                 <div class="dropdown-divider"></div>
                 <button type="button" class="dropdown-item" v-for="item in renderer.item" :class="{active : item.value == renderer.using.value}" @click="on_select_renderer(item)">{{ item.label }}</button>
               </div>
-            </li>
+            </li>               -->
             <li class="nav-item dropup">
-              <span class="nav-link dropdown-toggle" id="dropdown_share" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Experimental</span>
+              <span class="nav-link dropdown-toggle" id="dropdown_share" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">実験</span>
               <div class="dropdown-menu" aria-labelledby="dropdown_layout">
-                <button type="button" class="dropdown-item" :class="{active : skyway.stats}" @click="on_select_screen_share()">Screen Share</button>
                 <button type="button" class="dropdown-item" @click="on_select_recognition()">Speech Recognition</button>
               </div>
             </li>
-            <!-- <li class="nav-item dropup">
-              <span class="nav-link dropdown-toggle" id="dropdown_stats" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" :class="{disabled: is_mesh || is_sfu}">Stats</span>
-              <div class="dropdown-menu" aria-labelledby="dropdown_layout">
-                <button type="button" class="dropdown-item" :class="{active : skyway.stats}" @click="on_select_stats()">Output status on console</button>
-              </div>
-            </li> -->
           </ul>
           <span class="navbar-brand" :class="{invisible : !is_p2p }" v-cloak>{{ skyway.peer ? skyway.peer.id  : "" }}</span>
           <form class="form-inline mt-2 mt-md-0" @submit.prevent="on_call">
@@ -185,12 +178,12 @@
                 <input type="checkbox" id="mute_remote_voice" v-model="feature.mute_remote_voice" />Mute Remote Voice
               </label>
               <hr>
-              <h5>Debug</h5>
+              <!-- <h5>Debug</h5>
               <p>
                 <label for="self_translation">
                   <input type="checkbox" id="self_translation" v-model="debug.self_translation" :disabled="translation.api == ''" />Translate Your Voice
                 </label>
-              </p>
+              </p> -->
             </div>
             <div class="modal-footer">
               <!-- <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button> -->
