@@ -77,11 +77,11 @@ const vm = new Vue({
     },
     renderer: {
       item: consts.renderer,
-      using: { label: "Cover", value: "cover" }
+      using: { label: "Normal", value: "normal" }
     },
     layout: {
       item: consts.layout,
-      using: { label: "Auto", value: "auto" }
+      using: { label: "Grid", value: "grid" }
     }
   },
   methods: {
